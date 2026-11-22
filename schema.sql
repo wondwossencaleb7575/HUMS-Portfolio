@@ -1,3 +1,147 @@
+-- HUMS website database schema (fresh install).
+-- Run top to bottom in Supabase → SQL Editor.
+--
+-- AFTER running it, create your first login in Supabase (Authentication → Users →
+-- Add user, tick "Auto Confirm User"), then make that login the main administrator:
+--
+--   insert into public.admins (user_id, full_name, role)
+--   select id, 'Your Name', 'super_admin' from auth.users where email = 'you@example.com';
+--
+-- From then on, add and remove other administrators from the dashboard's
+-- "Administrators" tab.
+--
+-- NOTE: photo filenames below are lowercase because they must match the real
+-- files exactly — web servers are case-sensitive (Windows is not).
+
+-- ─────────────────────────────────────────────────────────────────────────────
+--  ADMINISTRATORS — who is allowed to edit the website
+--  • "admin"        can edit all website content
+--  • "super_admin"  can also add, remove and change the role of administrators
+--  A person with a Supabase login but NO row in this table can sign in but
+--  cannot change anything (and the dashboard signs them straight back out).
+-- ─────────────────────────────────────────────────────────────────────────────
+create table if not exists public.admins (
+  user_id    uuid primary key references auth.users (id) on delete cascade,
+  full_name  text not null default '',
+  role       text not null default 'admin' check (role in ('admin', 'super_admin')),
+  created_at timestamptz not null default now(),
+  created_by uuid references auth.users (id) on delete set null
+);
+alter table public.admins enable row level security;
+
+-- Helper checks used by every security rule below. "security definer" lets them
+-- look inside the admins table without the caller needing direct access to it.
+create or replace function public.is_admin()
+returns boolean
+language sql stable security definer set search_path = public
+as $$
+  select exists (select 1 from public.admins where user_id = auth.uid());
+$$;
+
+create or replace function public.is_super_admin()
+returns boolean
+language sql stable security definer set search_path = public
+as $$
+  select exists (select 1 from public.admins where user_id = auth.uid() and role = 'super_admin');
+$$;
+
+drop policy if exists "Admins can read the admin list"  on public.admins;
+drop policy if exists "Super admins can change roles"   on public.admins;
+drop policy if exists "Super admins can remove admins"  on public.admins;
+create policy "Admins can read the admin list"
+  on public.admins for select
+  using ((select public.is_admin()));
+create policy "Super admins can change roles"
+  on public.admins for update
+  using ((select public.is_super_admin()))
+  with check ((select public.is_super_admin()));
+create policy "Super admins can remove admins"
+  on public.admins for delete
+  using ((select public.is_super_admin()));
+-- (No INSERT policy on purpose: new admins are added only through add_admin_by_email below.)
+
+revoke all on public.admins from anon;
+grant select, update, delete on public.admins to authenticated;
+
+-- Safety net: the site must never be left without a super administrator.
+create or replace function public.protect_last_super_admin()
+returns trigger
+language plpgsql set search_path = public
+as $$
+begin
+  if old.role = 'super_admin'
+     and (tg_op = 'DELETE' or new.role <> 'super_admin')
+     and not exists (select 1 from public.admins where role = 'super_admin' and user_id <> old.user_id)
+  then
+    raise exception 'There must always be at least one super administrator. Promote someone else first.';
+  end if;
+  return case when tg_op = 'DELETE' then old else new end;
+end;
+$$;
+drop trigger if exists admins_protect_last_super on public.admins;
+create trigger admins_protect_last_super
+  before update or delete on public.admins
+  for each row execute function public.protect_last_super_admin();
+
+-- Add an administrator by the email of an existing login (super administrators only).
+create or replace function public.add_admin_by_email(
+  p_email     text,
+  p_full_name text default '',
+  p_role      text default 'admin'
+)
+returns void
+language plpgsql security definer set search_path = public
+as $$
+declare
+  v_uid uuid;
+begin
+  if not public.is_super_admin() then
+    raise exception 'Only super administrators can add administrators.';
+  end if;
+  if p_role not in ('admin', 'super_admin') then
+    raise exception 'Role must be "admin" or "super_admin".';
+  end if;
+
+  select id into v_uid from auth.users where lower(email) = lower(trim(p_email)) limit 1;
+  if v_uid is null then
+    raise exception 'No login exists for "%" yet. First create it in Supabase (Authentication → Users → Add user), then add it here.', trim(p_email);
+  end if;
+  if exists (select 1 from public.admins where user_id = v_uid) then
+    raise exception '"%" is already an administrator.', trim(p_email);
+  end if;
+
+  insert into public.admins (user_id, full_name, role, created_by)
+  values (v_uid, coalesce(trim(p_full_name), ''), p_role, auth.uid());
+end;
+$$;
+
+-- List administrators with their login email and last sign-in (any administrator may call this).
+create or replace function public.list_admins()
+returns table (
+  user_id         uuid,
+  email           text,
+  full_name       text,
+  role            text,
+  created_at      timestamptz,
+  last_sign_in_at timestamptz
+)
+language sql stable security definer set search_path = public
+as $$
+  select a.user_id, u.email::text, a.full_name, a.role, a.created_at, u.last_sign_in_at
+  from public.admins a
+  join auth.users u on u.id = a.user_id
+  where public.is_admin()
+  order by (a.role = 'super_admin') desc, a.created_at;
+$$;
+
+revoke all on function public.add_admin_by_email(text, text, text) from public, anon;
+revoke all on function public.list_admins()                         from public, anon;
+grant execute on function public.add_admin_by_email(text, text, text) to authenticated;
+grant execute on function public.list_admins()                         to authenticated;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+--  CONTENT TABLES
+-- ─────────────────────────────────────────────────────────────────────────────
 -- 1. site_content — global key/value text store
 create table if not exists site_content (
   key   text primary key,
@@ -7,10 +151,10 @@ alter table site_content enable row level security;
 create policy "Public can read site_content"
   on site_content for select
   using (true);
-create policy "Authenticated can write site_content"
+create policy "Admins can write site_content"
   on site_content for all
-  using (auth.role() = 'authenticated')
-  with check (auth.role() = 'authenticated');
+  using ((select public.is_admin()))
+  with check ((select public.is_admin()));
 insert into site_content (key, value) values
   ('site_logo', 'haramayalogo.jpg'),
   ('footer_history', 'A proud affiliate of Haramaya University, HUMS delivers quality education from Daycare through Grade 12 in Amharic, Oromiffa, and English, serving the university and surrounding community for many years.'),
@@ -19,7 +163,7 @@ insert into site_content (key, value) values
   ('director_welcome_text', 'It is with great pride that I welcome you to Haramaya University Model School, a heritage of academic distinction spanning for many years. It is Founded within the walls of Haramaya University itself, our school has grown hand in hand with one of Ethiopia''s most respected centres of higher learning. We hold ourselves to the highest standards of academic excellence, while nurturing the leaders, thinkers, and innovators our nation will need tomorrow.'),
   ('director_name', 'Mr. Seyoum Shega'),
   ('director_title', 'School Director, Haramaya University Model School'),
-  ('director_photo', 'Seyoum.jpg'),
+  ('director_photo', 'seyoum.jpg'),
   ('contact_phone', '+251 913 8827 932'),
   ('contact_email', 'seyoumshega@gmail.com'),
   ('contact_address', 'Haramaya University Campus, Haramaya, Oromia, Ethiopia'),
@@ -28,7 +172,7 @@ The school also strives to support students with an interest in learning, prepar
 •	Nursery and Kindergarten in Amharic and Oromiffa (Pre-primary school)
 •	Grades 1-6 in Oromiffa and Amharic
 •	Grades 7-8 in English
-•	Grades 9-12 in English (Secondary school)')
+•	Grades 9-12 in English (Secondary school)'),
   ('history_image', 'MS.jpg'),
   ('vision_text', 'To provide quality education that fosters problem-solving and critical thinking among students, making them capable of competing nationwide, and to see the institution as a model.'),
   ('mission_text', 'To deliver quality education to the university and the surrounding community children and to share experiences with nearby schools.'),
@@ -52,10 +196,10 @@ alter table news enable row level security;
 create policy "Public can read news"
   on news for select
   using (true);
-create policy "Authenticated can write news"
+create policy "Admins can write news"
   on news for all
-  using (auth.role() = 'authenticated')
-  with check (auth.role() = 'authenticated');
+  using ((select public.is_admin()))
+  with check ((select public.is_admin()));
 insert into news (date, title, description, image_url) values
   ('2026-06-15', 'Official Academic Year Conclusion & Regional Examination Success', 'Haramaya University Model School has officially concluded its academic year! Students have successfully received their final academic results. Additionally, the Ministry''s Grade 8 and Grade 6 regional examinations have been successfully completed with outstanding student participation and dedication.', '12thmodel.jpg'),
   ('2026-05-19', 'Grade 11 Natural Science Students Visit Haramaya University Farms', 'Today, the Grade 11 Natural Science students embarked on an educational and practical field trip to Haramaya University''s agricultural facilities, bridging classroom theory with real-world farming practice.', 'farm.jpg'),
@@ -76,12 +220,12 @@ alter table staff enable row level security;
 create policy "Public can read staff"
   on staff for select
   using (true);
-create policy "Authenticated can write staff"
+create policy "Admins can write staff"
   on staff for all
-  using (auth.role() = 'authenticated')
-  with check (auth.role() = 'authenticated');
+  using ((select public.is_admin()))
+  with check ((select public.is_admin()));
 insert into staff (name, role, category, image_url, sort_order) values
-  ('Mr. Seyoum Shega', 'School Director', 'Directorates', 'Seyoum.jpg', 1),
+  ('Mr. Seyoum Shega', 'School Director', 'Directorates', 'seyoum.jpg', 1),
   ('Mrs. Bayush Getahun', 'KG Vice Director & Daycare Coordinator', 'Directorates', 'bayush.jpg', 2),
   ('Abdi Jemal Ousman', 'Vice Director — Primary School (1–8)', 'Directorates', 'abdi.jpg', 3),
   ('Abdurahman Hassen', 'Vice Director — Primary School (1–8)', 'Directorates', 'abdro.jpg', 4),
@@ -94,7 +238,7 @@ insert into staff (name, role, category, image_url, sort_order) values
   ('Mahlet Zeleke', 'Unit Leader', 'School Management', 'mahlet.jpg', 6),
   ('Mulugeta Gudissa', 'English Dept. Head', 'School Management', 'abdela.jpg', 7),
   ('Bontu Tesfaye', 'Mathematics Dept. Head', 'School Management', 'unkown.jpg', 8),
-  ('Ebisa Belay', 'Natural Sciences Dept. Head', 'School Management', 'Ebisa.jpg', 9),
+  ('Ebisa Belay', 'Natural Sciences Dept. Head', 'School Management', 'ebisa.jpg', 9),
   ('Almaz Digafe', 'Amharic Dept. Head', 'School Management', 'almaz.jpg', 10),
   ('Misrak Fanta', 'Social Sciences Dept. Head', 'School Management', 'misrak.jpg', 11),
   ('Fikru Bekele', 'Sport Dept. Head (1–8)', 'School Management', 'fikru.jpg', 12),
@@ -117,10 +261,10 @@ alter table academic_metrics enable row level security;
 create policy "Public can read academic_metrics"
   on academic_metrics for select
   using (true);
-create policy "Authenticated can write academic_metrics"
+create policy "Admins can write academic_metrics"
   on academic_metrics for all
-  using (auth.role() = 'authenticated')
-  with check (auth.role() = 'authenticated');
+  using ((select public.is_admin()))
+  with check ((select public.is_admin()));
 insert into academic_metrics (category_name, count_value, metric_group, sort_order) values
   ('Day-Care', 108, 'students', 1),
   ('Kindergarten', 297, 'students', 2),
@@ -145,10 +289,10 @@ alter table program_lists enable row level security;
 create policy "Public can read program_lists"
   on program_lists for select
   using (true);
-create policy "Authenticated can write program_lists"
+create policy "Admins can write program_lists"
   on program_lists for all
-  using (auth.role() = 'authenticated')
-  with check (auth.role() = 'authenticated');
+  using ((select public.is_admin()))
+  with check ((select public.is_admin()));
 insert into program_lists (program_title, languages, description, sort_order) values
   ('Daycare', '—', 'A safe, nurturing, and stimulating environment for our youngest learners, providing early childhood care and developmental support for infants and toddlers.', 1),
   ('Kindergarten (KG)', 'Amharic & Afan Oromo', 'Foundational early education focusing on literacy, numeracy, social skills, and creative development to prepare children for formal schooling.', 2),
@@ -169,10 +313,10 @@ alter table galleries enable row level security;
 create policy "Public can read galleries"
   on galleries for select
   using (true);
-create policy "Authenticated can write galleries"
+create policy "Admins can write galleries"
   on galleries for all
-  using (auth.role() = 'authenticated')
-  with check (auth.role() = 'authenticated');
+  using ((select public.is_admin()))
+  with check ((select public.is_admin()));
 insert into galleries (section_key, image_url, description, sort_order) values
   ('homepage_wide', 'daycare2.jpg', 'Safe and nurturing daycare environment', 1),
   ('homepage_wide', 'art.jpg', 'Encouraging creativity through art', 2),

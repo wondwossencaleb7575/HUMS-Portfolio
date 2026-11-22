@@ -1,6 +1,6 @@
 (() => {
-  const SUPABASE_URL = 'https://coysymsgsgcmbadfbdvg.supabase.co';
-  const SUPABASE_ANON_KEY = 'sb_publishable_EkC3eUFQ1RgZiJ_FJQoZbg_YYC408ci';
+  const SUPABASE_URL = 'https://aevxykavypcuympffdpz.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFldnh5a2F2eXBjdXltcGZmZHB6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMwODE1NDIsImV4cCI6MjA5ODY1NzU0Mn0.2YSO-FVnnPrqS3jqVn07GAi_gaYomn4TeU_nvQi5BBc';
 
   const supabase = (typeof window !== 'undefined' && window.supabase && SUPABASE_URL !== 'YOUR_SUPABASE_PROJECT_URL')
     ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
@@ -13,6 +13,24 @@
     }
     return true;
   }
+
+  /* ── Image filename safety net ──────────────────────────────────
+     Windows ignores UPPER/lower case in filenames; web servers do not, so
+     "Seyoum.jpg" works on a PC but 404s online when the file is "seyoum.jpg".
+     If an image fails to load and its filename has capital letters, retry
+     once with the filename in lowercase. (All site photos are lowercase,
+     except MS.jpg and Rome.jpg, which load fine on the first try.)        */
+  document.addEventListener('error', (e) => {
+    const img = e.target;
+    if (!img || img.tagName !== 'IMG' || img.dataset.caseRetry) return;
+    const src = img.getAttribute('src') || '';
+    if (/^(data|blob):/i.test(src)) return;
+    const fixed = src.replace(/[^/]+$/, name => name.toLowerCase());
+    if (fixed !== src) {
+      img.dataset.caseRetry = '1';
+      img.src = fixed;
+    }
+  }, true);
 
   /* ── Small helpers ──────────────────────────────────────────── */
   function esc(str) {

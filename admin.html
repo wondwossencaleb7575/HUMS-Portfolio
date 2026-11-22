@@ -193,6 +193,26 @@
     .help-step strong { display: block; font-family: 'Poppins', sans-serif; font-size: .9rem; color: var(--navy); margin-bottom: .2rem; }
     .help-step p { font-size: .85rem; color: var(--text-light); line-height: 1.7; }
 
+    /* Administrators panel */
+    .admin-initials {
+      width: 48px; height: 48px; border-radius: 50%; flex-shrink: 0;
+      background: var(--navy); color: var(--gold); border: 2px solid var(--gold);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Poppins', sans-serif; font-weight: 700; font-size: .9rem;
+    }
+    .admin-tag-super { background: var(--navy); color: var(--gold); }
+    .admin-tag-you { background: rgba(255,215,0,.25); color: var(--gold-dark); }
+    .admin-list-actions select {
+      padding: .4rem .6rem; border: 1.5px solid var(--gray-light); border-radius: var(--radius-sm);
+      font-size: .78rem; background: var(--white); color: var(--navy); font-family: 'Poppins', sans-serif;
+    }
+    .admin-note {
+      background: var(--off-white); border-left: 3px solid var(--gold); padding: .85rem 1.1rem;
+      border-radius: var(--radius-sm); font-size: .84rem; color: var(--text-light); line-height: 1.7; margin-bottom: 1.25rem;
+    }
+    .admin-note ol { margin: .4rem 0 0 1.2rem; padding: 0; }
+    .admin-note li { margin-bottom: .2rem; }
+
     @media (max-width: 900px) {
       .admin-sidebar { width: 72px; }
       .admin-sidebar-brand strong, .admin-sidebar-brand span { display: none; }
@@ -261,6 +281,10 @@
         <button class="admin-nav-btn" data-panel="panel-staff">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           <span class="label">Staff Directory</span>
+        </button>
+        <button class="admin-nav-btn" data-panel="panel-admins">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <span class="label">Administrators</span>
         </button>
         <button class="admin-nav-btn" data-panel="panel-help">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 1 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12" y2="17"/></svg>
@@ -356,7 +380,8 @@
           </div>
           <div class="admin-field">
             <label>Director Photo Filename</label>
-            <input type="text" id="field-director_photo" placeholder="Seyoum.jpg" />
+            <input type="text" id="field-director_photo" placeholder="seyoum.jpg" />
+            <div class="hint">Type the filename exactly as it appears in the website folder, including capital letters.</div>
           </div>
           <div class="admin-field">
             <label>Welcome Message</label>
@@ -587,6 +612,66 @@
         </div>
       </section>
 
+      <!-- ═══ ADMINISTRATORS ═══ -->
+      <section class="admin-panel" id="panel-admins">
+        <div class="admin-panel-header">
+          <h2>Administrators</h2>
+          <p>The people who can sign in to this dashboard and edit the website.</p>
+        </div>
+
+        <div class="admin-card">
+          <h3>👤 My Account</h3>
+          <p id="my-account-summary" style="font-size:.88rem; color:var(--text-light); margin-bottom:1.25rem;"></p>
+          <div class="admin-row-2">
+            <div class="admin-field">
+              <label for="new-password">New Password</label>
+              <input type="password" id="new-password" autocomplete="new-password" />
+              <div class="hint">At least 8 characters.</div>
+            </div>
+            <div class="admin-field">
+              <label for="confirm-password">Confirm New Password</label>
+              <input type="password" id="confirm-password" autocomplete="new-password" />
+            </div>
+          </div>
+          <button class="admin-btn admin-btn-gold" id="change-password-btn">🔑 Change My Password</button>
+        </div>
+
+        <!-- Shown to super administrators only -->
+        <div class="admin-card" id="admin-add-card" style="display:none;">
+          <h3>➕ Add an Administrator</h3>
+          <div class="admin-note">
+            Adding someone takes two steps:
+            <ol>
+              <li>In <strong>Supabase</strong> go to <em>Authentication → Users → Add user → Create new user</em>. Enter their email and a starting password, and tick <em>Auto Confirm User</em>.</li>
+              <li>Come back here, type the <strong>same email</strong> below and press <em>Add Administrator</em>. Ask them to choose their own password under <em>My Account</em>.</li>
+            </ol>
+          </div>
+          <div class="admin-row-2">
+            <div class="admin-field">
+              <label for="admin-add-email">Login Email</label>
+              <input type="email" id="admin-add-email" placeholder="name@example.com" autocomplete="off" />
+            </div>
+            <div class="admin-field">
+              <label for="admin-add-name">Full Name</label>
+              <input type="text" id="admin-add-name" placeholder="e.g. Feyera Tilahun" autocomplete="off" />
+            </div>
+          </div>
+          <div class="admin-field">
+            <label for="admin-add-role">Role</label>
+            <select id="admin-add-role">
+              <option value="admin">Administrator — can edit all website content</option>
+              <option value="super_admin">Super administrator — can also add and remove administrators</option>
+            </select>
+          </div>
+          <button class="admin-btn admin-btn-gold" id="admin-add-btn">Add Administrator</button>
+        </div>
+
+        <div class="admin-card">
+          <h3>🛡️ Current Administrators</h3>
+          <div id="admins-list"><p class="admin-empty">Loading…</p></div>
+        </div>
+      </section>
+
       <!-- ═══ HELP GUIDE ═══ -->
       <section class="admin-panel" id="panel-help">
         <div class="admin-panel-header">
@@ -659,6 +744,22 @@
         </div>
 
         <div class="admin-card">
+          <h3>👥 Adding or Removing an Administrator <small style="font-weight:500; color:var(--gray);">(super administrators only)</small></h3>
+          <div class="help-step">
+            <div class="help-step-num">1</div>
+            <div><strong>Create their login in Supabase</strong><p>In the Supabase dashboard open Authentication → Users → Add user → Create new user. Enter their email and a starting password, and tick "Auto Confirm User".</p></div>
+          </div>
+          <div class="help-step">
+            <div class="help-step-num">2</div>
+            <div><strong>Add them here</strong><p>Open the "Administrators" tab, type the same email and their name, choose a role, and press "Add Administrator". They can sign in straight away.</p></div>
+          </div>
+          <div class="help-step">
+            <div class="help-step-num">3</div>
+            <div><strong>Removing someone</strong><p>Press "Remove" next to their name. They lose access immediately. (Their login still exists in Supabase — delete it there too if they have left for good.)</p></div>
+          </div>
+        </div>
+
+        <div class="admin-card">
           <h3>❓ Good to Know</h3>
           <div class="help-step">
             <div class="help-step-num">i</div>
@@ -666,11 +767,11 @@
           </div>
           <div class="help-step">
             <div class="help-step-num">i</div>
-            <div><strong>Five directors share this dashboard</strong><p>Mr. Seyoum Shega, Mrs. Bayush Getahun, Abdi Jemal, Abdurahman Hassen, and Feyera Tilahun each have their own private login. Anyone who saves a change will see it reflected for everyone immediately.</p></div>
+            <div><strong>Several administrators share this dashboard</strong><p>Each administrator has their own private login, and anyone who saves a change will see it reflected for everyone immediately. The "Administrators" tab shows who currently has access. A "super administrator" can also add and remove administrators.</p></div>
           </div>
           <div class="help-step">
             <div class="help-step-num">i</div>
-            <div><strong>Forgot your password?</strong><p>Contact whoever manages the Supabase project for this website — they can reset it for you from the Supabase dashboard.</p></div>
+            <div><strong>Changing or forgetting your password</strong><p>To change it, open Administrators → My Account. If you have forgotten it, ask a super administrator or whoever manages the Supabase project — they can set a new one from Authentication → Users in the Supabase dashboard.</p></div>
           </div>
         </div>
       </section>

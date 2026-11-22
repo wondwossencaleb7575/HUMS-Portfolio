@@ -1,5 +1,5 @@
-const SUPABASE_URL = 'https://coysymsgsgcmbadfbdvg.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_EkC3eUFQ1RgZiJ_FJQoZbg_YYC408ci';
+const SUPABASE_URL = 'https://aevxykavypcuympffdpz.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFldnh5a2F2eXBjdXltcGZmZHB6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMwODE1NDIsImV4cCI6MjA5ODY1NzU0Mn0.2YSO-FVnnPrqS3jqVn07GAi_gaYomn4TeU_nvQi5BBc';
 const humsAdminClient = (typeof window !== 'undefined' && window.supabase && SUPABASE_URL !== 'YOUR_SUPABASE_PROJECT_URL')
   ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
   : null;
@@ -13,7 +13,7 @@ function toast(message, type = 'success') {
   el.className = `admin-toast ${type === 'error' ? 'error' : ''}`;
   el.textContent = message;
   document.body.appendChild(el);
-  setTimeout(() => el.remove(), 4000);
+  setTimeout(() => el.remove(), type === 'error' ? 9000 : 4000);
 }
 if (!humsAdminClient) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -30,27 +30,72 @@ if (!humsAdminClient) {
     `;
   });
 }
-/* AUTH */
+/* AUTH — a person gets in only if they are signed in AND listed in the `admins` table */
+let activeUserId = null;   // the user whose dashboard is showing (or being checked right now)
+let currentAdmin = null;   // { user_id, email, full_name, role } for the signed-in administrator
+
 async function initAuth() {
   const { data: { session } } = await humsAdminClient.auth.getSession();
-  if (session) {
-    showDashboard(session);
-  } else {
-    showLogin();
-  }
+  handleSession(session);
   humsAdminClient.auth.onAuthStateChange((_event, session) => {
-    if (session) showDashboard(session);
-    else showLogin();
+    // Deferred on purpose: calling Supabase directly inside this callback can deadlock.
+    setTimeout(() => handleSession(session), 0);
   });
 }
-function showLogin() {
+
+async function handleSession(session) {
+  if (!session) {
+    activeUserId = null;
+    currentAdmin = null;
+    showLogin();
+    return;
+  }
+  // Same person again (token refresh, tab refocus, duplicate event) — nothing to redo.
+  if (activeUserId === session.user.id) return;
+  activeUserId = session.user.id;
+
+  const { data: row, error } = await humsAdminClient
+    .from('admins')
+    .select('role, full_name')
+    .eq('user_id', session.user.id)
+    .maybeSingle();
+
+  if (activeUserId !== session.user.id) return;   // signed out or switched while we were checking
+
+  if (error || !row) {
+    activeUserId = null;
+    showLogin(error
+      ? 'Could not verify administrator access (' + error.message + '). If the site was just updated, make sure multi_admin_migration.sql has been run in Supabase.'
+      : 'This account is not an authorized administrator. Please ask a super administrator to add you.');
+    await humsAdminClient.auth.signOut();
+    return;
+  }
+
+  currentAdmin = {
+    user_id: session.user.id,
+    email: session.user.email,
+    full_name: row.full_name || '',
+    role: row.role,
+  };
+  showDashboard(session);
+}
+function showLogin(message) {
   document.getElementById('login-overlay').style.display = 'flex';
   document.getElementById('dashboard').classList.remove('visible');
+  document.getElementById('login-password').value = '';
+  if (message) {
+    const box = document.getElementById('login-error');
+    box.textContent = message;
+    box.style.display = 'block';
+  }
 }
 function showDashboard(session) {
   document.getElementById('login-overlay').style.display = 'none';
+  document.getElementById('login-error').style.display = 'none';
+  document.getElementById('login-password').value = '';
   document.getElementById('dashboard').classList.add('visible');
   document.getElementById('admin-user-email').textContent = session.user.email;
+  applyRoleToUI();
   loadAllData();
 }
 document.addEventListener('DOMContentLoaded', () => {
@@ -109,6 +154,7 @@ async function loadAllData() {
   await loadGalleryList(currentGalleryTab, 'gallery-academics-list');
   await loadNewsList();
   await loadStaffList();
+  await loadAdminsList();
 }
 const SITE_CONTENT_KEYS = [
   'site_logo', 'footer_history', 'hero_headline', 'hero_bg_image',
@@ -542,4 +588,132 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   document.getElementById('staff-cancel-btn')?.addEventListener('click', resetStaffForm);
+});
+
+
+/* TAB F: ADMINISTRATORS */
+const ROLE_LABEL = { admin: 'Administrator', super_admin: 'Super administrator' };
+
+function isSuperAdmin() {
+  return !!currentAdmin && currentAdmin.role === 'super_admin';
+}
+
+function applyRoleToUI() {
+  if (!currentAdmin) return;
+  const addCard = document.getElementById('admin-add-card');
+  if (addCard) addCard.style.display = isSuperAdmin() ? 'block' : 'none';
+  const summary = document.getElementById('my-account-summary');
+  if (summary) {
+    const name = currentAdmin.full_name || currentAdmin.email;
+    summary.innerHTML = `Signed in as <strong>${esc(name)}</strong> (${esc(currentAdmin.email)}) — ${ROLE_LABEL[currentAdmin.role] || esc(currentAdmin.role)}.`;
+  }
+}
+
+function initialsOf(name) {
+  const parts = String(name || '?').trim().split(/\s+/).filter(Boolean);
+  const first = parts[0] ? parts[0][0] : '?';
+  const last = parts.length > 1 ? parts[parts.length - 1][0] : '';
+  return (first + last).toUpperCase();
+}
+
+function lastSignInText(iso) {
+  if (!iso) return 'has not signed in yet';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  return 'last sign-in ' + d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+async function loadAdminsList() {
+  const container = document.getElementById('admins-list');
+  if (!container) return;
+  const { data, error } = await humsAdminClient.rpc('list_admins');
+  if (error) { container.innerHTML = `<p class="admin-empty">Could not load: ${esc(error.message)}</p>`; return; }
+  if (!data || !data.length) { container.innerHTML = '<p class="admin-empty">No administrators found.</p>'; return; }
+
+  container.innerHTML = data.map(a => {
+    const isMe = currentAdmin && a.user_id === currentAdmin.user_id;
+    const display = a.full_name || a.email;
+    // Super administrators can change roles / remove others (never themselves — protects against lock-out).
+    const controls = (isSuperAdmin() && !isMe) ? `
+      <select onchange="changeAdminRole('${a.user_id}', this.value)" aria-label="Role for ${esc(display)}">
+        <option value="admin" ${a.role === 'admin' ? 'selected' : ''}>Administrator</option>
+        <option value="super_admin" ${a.role === 'super_admin' ? 'selected' : ''}>Super administrator</option>
+      </select>
+      <button class="admin-btn admin-btn-danger admin-btn-sm" onclick="removeAdmin('${a.user_id}')">Remove</button>` : '';
+    return `
+      <div class="admin-list-item">
+        <div class="admin-initials">${esc(initialsOf(display))}</div>
+        <div class="grow">
+          <strong>${esc(display)}${isMe ? ' <span class="admin-tag admin-tag-you">You</span>' : ''}</strong>
+          <span>${esc(a.email)} · <span class="admin-tag ${a.role === 'super_admin' ? 'admin-tag-super' : 'admin-tag-directorates'}">${esc(ROLE_LABEL[a.role] || a.role)}</span> · ${esc(lastSignInText(a.last_sign_in_at))}</span>
+        </div>
+        <div class="admin-list-actions">${controls}</div>
+      </div>`;
+  }).join('');
+}
+
+async function changeAdminRole(userId, role) {
+  const { data, error } = await humsAdminClient.from('admins').update({ role }).eq('user_id', userId).select();
+  if (error) toast('Could not change role: ' + error.message, 'error');
+  else if (!data || !data.length) toast('Could not change role — only super administrators can do this.', 'error');
+  else toast('Role updated.');
+  loadAdminsList();   // always refresh so the dropdown shows what is really saved
+}
+
+async function removeAdmin(userId) {
+  if (!confirm('Remove this administrator? They will lose access to this dashboard immediately.')) return;
+  const { data, error } = await humsAdminClient.from('admins').delete().eq('user_id', userId).select();
+  if (error) { toast('Could not remove: ' + error.message, 'error'); }
+  else if (!data || !data.length) { toast('Could not remove — only super administrators can do this.', 'error'); }
+  else { toast('Administrator removed.'); }
+  loadAdminsList();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('admin-add-btn')?.addEventListener('click', async () => {
+    const email = document.getElementById('admin-add-email').value.trim();
+    const full_name = document.getElementById('admin-add-name').value.trim();
+    const role = document.getElementById('admin-add-role').value;
+    if (!email) { toast('Please enter the login email.', 'error'); return; }
+
+    const btn = document.getElementById('admin-add-btn');
+    btn.disabled = true;
+    btn.textContent = 'Adding…';
+
+    const { error } = await humsAdminClient.rpc('add_admin_by_email', {
+      p_email: email, p_full_name: full_name, p_role: role,
+    });
+
+    btn.disabled = false;
+    btn.textContent = 'Add Administrator';
+
+    if (error) { toast(error.message, 'error'); return; }
+    toast('Administrator added.');
+    document.getElementById('admin-add-email').value = '';
+    document.getElementById('admin-add-name').value = '';
+    document.getElementById('admin-add-role').value = 'admin';
+    loadAdminsList();
+  });
+
+  document.getElementById('change-password-btn')?.addEventListener('click', async () => {
+    const pw = document.getElementById('new-password').value;
+    const pw2 = document.getElementById('confirm-password').value;
+    if (pw.length < 8) { toast('Your new password must be at least 8 characters.', 'error'); return; }
+    if (pw !== pw2) { toast('The two passwords do not match.', 'error'); return; }
+
+    const btn = document.getElementById('change-password-btn');
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+
+    const { error } = await humsAdminClient.auth.updateUser({ password: pw });
+
+    btn.disabled = false;
+    btn.textContent = originalText;
+
+    if (error) { toast('Could not change password: ' + error.message, 'error'); return; }
+    toast('Password changed.');
+    document.getElementById('new-password').value = '';
+    document.getElementById('confirm-password').value = '';
+  });
 });
