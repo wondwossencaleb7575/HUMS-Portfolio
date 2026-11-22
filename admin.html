@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Dashboard — Haramaya University Model School</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body { background: var(--off-white); min-height: 100vh; }
+    /* ---------- LOGIN OVERLAY ---------- */
+    #login-overlay {
+      position: fixed; inset: 0; z-index: 2000;
+      background: linear-gradient(135deg, var(--navy-dark), var(--navy));
+      display: flex; align-items: center; justify-content: center;
+      padding: 1.5rem;
+    }
+    .login-card {
+      background: var(--white);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-lg);
+      padding: 2.5rem 2.25rem;
+      width: 100%;
+      max-width: 380px;
+      text-align: center;
+    }
+    .login-card img { max-height: 3.25rem; margin: 0 auto 1rem; display: block; }
+    .login-card h1 {
+      font-family: 'Poppins', sans-serif; font-size: 1.3rem; font-weight: 700;
+      color: var(--navy); margin-bottom: .25rem;
+    }
+    .login-card p.sub { color: var(--text-light); font-size: .85rem; margin-bottom: 1.75rem; }
+    .login-card form { display: flex; flex-direction: column; gap: 1rem; text-align: left; }
+    .login-card label {
+      font-family: 'Poppins', sans-serif; font-size: .78rem; font-weight: 600;
+      color: var(--navy); text-transform: uppercase; letter-spacing: .05em;
+      margin-bottom: .35rem; display: block;
+    }
+    .login-card input {
+      width: 100%; padding: .75rem 1rem; border: 1.5px solid var(--gray-light);
+      border-radius: var(--radius-sm); font-size: .9rem; outline: none;
+      transition: var(--transition);
+    }
+    .login-card input:focus { border-color: var(--navy); box-shadow: 0 0 0 3px rgba(11,60,109,.08); }
+    .login-card button {
+      margin-top: .5rem; width: 100%; padding: .85rem; border-radius: 50px;
+      background: var(--gold); color: var(--navy-dark); font-family: 'Poppins', sans-serif;
+      font-weight: 700; font-size: .92rem; transition: var(--transition);
+    }
+    .login-card button:hover { background: var(--gold-dark); }
+    .login-card button:disabled { opacity: .6; cursor: not-allowed; }
+    #login-error {
+      background: #fde8e8; color: #b42318; border-radius: var(--radius-sm);
+      padding: .65rem .9rem; font-size: .82rem; text-align: left; display: none;
+    }
+    .login-note {
+      margin-top: 1.5rem; font-size: .76rem; color: var(--gray); line-height: 1.6;
+    }
+    /* ---------- DASHBOARD SHELL ---------- */
+    #dashboard { display: none; }
+    #dashboard.visible { display: flex; min-height: 100vh; }
+    .admin-sidebar {
+      width: 240px;
+      flex-shrink: 0;
+      background: var(--navy);
+      color: var(--white);
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding: 1.5rem 0;
+    }
+    .admin-sidebar-brand {
+      display: flex; align-items: center; gap: .6rem;
+      padding: 0 1.25rem 1.25rem;
+      border-bottom: 1px solid rgba(255,255,255,.1);
+      margin-bottom: 1rem;
+    }
+    .admin-sidebar-brand img { max-height: 2.25rem; background: transparent !important; }
+    .admin-sidebar-brand strong { font-family: 'Poppins', sans-serif; font-size: .85rem; line-height: 1.3; }
+    .admin-sidebar-brand span { display: block; font-size: .68rem; color: var(--gold); }
+    .admin-nav { display: flex; flex-direction: column; gap: .2rem; padding: 0 .75rem; flex: 1; overflow-y: auto; }
+    .admin-nav-btn {
+      display: flex; align-items: center; gap: .65rem;
+      padding: .7rem .9rem; border-radius: var(--radius-sm);
+      color: rgba(255,255,255,.75); font-family: 'Poppins', sans-serif;
+      font-size: .85rem; font-weight: 500; text-align: left;
+      transition: var(--transition); width: 100%;
+    }
+    .admin-nav-btn:hover { background: rgba(255,255,255,.06); color: var(--white); }
+    .admin-nav-btn.active { background: rgba(255,215,0,.12); color: var(--gold); font-weight: 600; }
+    .admin-nav-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+    .admin-sidebar-footer {
+      padding: 1rem 1.25rem 0; border-top: 1px solid rgba(255,255,255,.1); margin-top: 1rem;
+    }
+    .admin-user-email { font-size: .75rem; color: rgba(255,255,255,.55); margin-bottom: .65rem; word-break: break-all; }
+    .admin-logout-btn {
+      width: 100%; padding: .55rem; border-radius: var(--radius-sm);
+      border: 1.5px solid rgba(255,255,255,.2); color: rgba(255,255,255,.8);
+      font-size: .8rem; font-family: 'Poppins', sans-serif; transition: var(--transition);
+    }
+    .admin-logout-btn:hover { background: rgba(255,255,255,.08); color: var(--white); }
+
+    .admin-main { flex: 1; padding: 2rem 2.5rem 4rem; max-width: 1100px; }
+    .admin-panel { display: none; }
+    .admin-panel.active { display: block; }
+    .admin-panel-header { margin-bottom: 1.75rem; }
+    .admin-panel-header h2 {
+      font-family: 'Poppins', sans-serif; font-size: 1.5rem; font-weight: 700; color: var(--navy);
+    }
+    .admin-panel-header p { color: var(--text-light); font-size: .9rem; margin-top: .25rem; }
+    .admin-card {
+      background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow-sm);
+      padding: 1.75rem 2rem; margin-bottom: 1.5rem;
+    }
+    .admin-card h3 {
+      font-family: 'Poppins', sans-serif; font-size: 1rem; font-weight: 700; color: var(--navy);
+      margin-bottom: 1.1rem; display: flex; align-items: center; gap: .5rem;
+    }
+    .admin-field { margin-bottom: 1.1rem; }
+    .admin-field label {
+      display: block; font-family: 'Poppins', sans-serif; font-size: .78rem; font-weight: 600;
+      color: var(--navy); text-transform: uppercase; letter-spacing: .04em; margin-bottom: .4rem;
+    }
+    .admin-field input,
+    .admin-field textarea,
+    .admin-field select {
+      width: 100%; padding: .7rem .9rem; border: 1.5px solid var(--gray-light);
+      border-radius: var(--radius-sm); font-family: 'Inter', sans-serif; font-size: .88rem;
+      color: var(--text); outline: none; transition: var(--transition); background: var(--white);
+    }
+    .admin-field input:focus, .admin-field textarea:focus, .admin-field select:focus {
+      border-color: var(--navy); box-shadow: 0 0 0 3px rgba(11,60,109,.08);
+    }
+    .admin-field textarea { resize: vertical; min-height: 90px; }
+    .admin-field .hint { font-size: .76rem; color: var(--gray); margin-top: .3rem; }
+    .admin-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+    .admin-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.25rem; }
+
+    .admin-btn {
+      display: inline-flex; align-items: center; gap: .5rem;
+      padding: .65rem 1.5rem; border-radius: 50px; font-family: 'Poppins', sans-serif;
+      font-weight: 600; font-size: .85rem; transition: var(--transition);
+    }
+    .admin-btn-primary { background: var(--navy); color: var(--white); }
+    .admin-btn-primary:hover { background: var(--navy-dark); }
+    .admin-btn-gold { background: var(--gold); color: var(--navy-dark); }
+    .admin-btn-gold:hover { background: var(--gold-dark); }
+    .admin-btn-danger { background: #fde8e8; color: #b42318; }
+    .admin-btn-danger:hover { background: #f8d2d2; }
+    .admin-btn-ghost { background: var(--off-white); color: var(--navy); border: 1.5px solid var(--gray-light); }
+    .admin-btn-ghost:hover { background: var(--gray-light); }
+    .admin-btn-sm { padding: .4rem 1rem; font-size: .78rem; }
+
+    .admin-list-item {
+      display: flex; align-items: center; gap: 1rem; padding: .9rem; border-radius: var(--radius-sm);
+      border: 1px solid var(--gray-light); margin-bottom: .75rem; background: var(--off-white);
+    }
+    .admin-list-item img { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; flex-shrink: 0; border: 2px solid var(--gold); }
+    .admin-list-item .grow { flex: 1; min-width: 0; }
+    .admin-list-item .grow strong { display: block; font-family: 'Poppins', sans-serif; font-size: .88rem; color: var(--navy); }
+    .admin-list-item .grow span { font-size: .78rem; color: var(--text-light); }
+    .admin-list-actions { display: flex; gap: .5rem; flex-shrink: 0; }
+
+    .admin-tag { display: inline-block; font-size: .68rem; font-weight: 700; padding: .15rem .55rem; border-radius: 50px; font-family: 'Poppins', sans-serif; text-transform: uppercase; letter-spacing: .03em; }
+    .admin-tag-directorates { background: rgba(11,60,109,.1); color: var(--navy); }
+    .admin-tag-management { background: rgba(255,215,0,.18); color: var(--gold-dark); }
+
+    .admin-toast {
+      position: fixed; top: 1.5rem; right: 1.5rem; z-index: 3000;
+      background: var(--navy); color: var(--white); padding: .9rem 1.3rem;
+      border-radius: var(--radius-sm); box-shadow: var(--shadow-lg); font-size: .85rem;
+      display: flex; align-items: center; gap: .65rem; max-width: 360px;
+      animation: adminToastIn .3s ease;
+    }
+    .admin-toast.error { background: #7a1f1f; }
+    @keyframes adminToastIn { from { opacity:0; transform: translateX(24px); } to { opacity:1; transform: translateX(0); } }
+    .admin-empty { color: var(--gray); font-size: .85rem; text-align: center; padding: 2rem 0; }
+    .admin-divider { border: none; border-top: 1px solid var(--gray-light); margin: 1.75rem 0; }
+    /* Help guide */
+    .help-step {
+      display: flex; gap: 1rem; align-items: flex-start; margin-bottom: 1.25rem;
+    }
+    .help-step-num {
+      background: var(--navy); color: var(--gold); width: 1.75rem; height: 1.75rem; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center; font-size: .75rem; font-weight: 700;
+      font-family: 'Poppins', sans-serif; flex-shrink: 0;
+    }
+    .help-step strong { display: block; font-family: 'Poppins', sans-serif; font-size: .9rem; color: var(--navy); margin-bottom: .2rem; }
+    .help-step p { font-size: .85rem; color: var(--text-light); line-height: 1.7; }
+
+    @media (max-width: 900px) {
+      .admin-sidebar { width: 72px; }
+      .admin-sidebar-brand strong, .admin-sidebar-brand span { display: none; }
+      .admin-nav-btn span.label { display: none; }
+      .admin-main { padding: 1.5rem 1.25rem 3rem; }
+      .admin-row-2, .admin-row-3 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <!-- ════════════════════════ LOGIN OVERLAY ════════════════════════ -->
+  <div id="login-overlay">
+    <div class="login-card">
+      <img src="haramayalogo.jpg" alt="HUMS Logo" />
+      <h1>Admin Dashboard</h1>
+      <p class="sub">Haramaya University Model School</p>
+      <form id="login-form">
+        <div id="login-error"></div>
+        <div>
+          <label for="login-email">Email</label>
+          <input type="email" id="login-email" placeholder="you@hums.edu.et" required autocomplete="username" />
+        </div>
+        <div>
+          <label for="login-password">Password</label>
+          <input type="password" id="login-password" placeholder="••••••••" required autocomplete="current-password" />
+        </div>
+        <button type="submit" id="login-btn">Sign In</button>
+      </form>
+      <p class="login-note">Access is restricted to authorized HUMS directorate administrators. Contact the system administrator if you need an account created.</p>
+    </div>
+  </div>
+  <!-- ════════════════════════ DASHBOARD SHELL ════════════════════════ -->
+  <div id="dashboard">
+
+    <!-- SIDEBAR -->
+    <aside class="admin-sidebar">
+      <div class="admin-sidebar-brand">
+        <img src="haramayalogo.jpg" alt="HUMS Logo" />
+        <div>
+          <strong>HUMS Admin</strong>
+          <span>Management Portal</span>
+        </div>
+      </div>
+
+      <nav class="admin-nav">
+        <button class="admin-nav-btn active" data-panel="panel-global">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          <span class="label">Global &amp; Branding</span>
+        </button>
+        <button class="admin-nav-btn" data-panel="panel-home">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          <span class="label">Home Page</span>
+        </button>
+        <button class="admin-nav-btn" data-panel="panel-about">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          <span class="label">About Framework</span>
+        </button>
+        <button class="admin-nav-btn" data-panel="panel-academics">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5-10-5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+          <span class="label">Academics &amp; Metrics</span>
+        </button>
+        <button class="admin-nav-btn" data-panel="panel-news">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="13" y2="15"/></svg>
+          <span class="label">News Directory</span>
+        </button>
+        <button class="admin-nav-btn" data-panel="panel-staff">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span class="label">Staff Directory</span>
+        </button>
+        <button class="admin-nav-btn" data-panel="panel-help">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 1 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12" y2="17"/></svg>
+          <span class="label">Help Guide</span>
+        </button>
+      </nav>
+
+      <div class="admin-sidebar-footer">
+        <div class="admin-user-email" id="admin-user-email"></div>
+        <button class="admin-logout-btn" id="logout-btn">Sign Out</button>
+      </div>
+    </aside>
+
+    <!-- MAIN WORKSPACE -->
+    <main class="admin-main">
+
+      <!-- ═══ TAB A: GLOBAL & BRANDING ═══ -->
+      <section class="admin-panel active" id="panel-global">
+        <div class="admin-panel-header">
+          <h2>Global &amp; Branding Content</h2>
+          <p>Site-wide text and the logo asset shown in the header and footer on every page.</p>
+        </div>
+
+        <div class="admin-card">
+          <h3>🖼️ Logo &amp; Branding</h3>
+          <div class="admin-field">
+            <label>Global Logo Filename</label>
+            <input type="text" id="field-site_logo" placeholder="haramayalogo.jpg" />
+            <p class="hint">The exact image filename (must already exist alongside your HTML files) used in the navbar and footer on every page.</p>
+          </div>
+        </div>
+
+        <div class="admin-card">
+          <h3>📄 Footer History Blurb</h3>
+          <div class="admin-field">
+            <label>Short Footer Summary</label>
+            <textarea id="field-footer_history" placeholder="A proud affiliate of Haramaya University..."></textarea>
+            <p class="hint">Appears under the logo in the footer on every page. Keep it to 1–2 sentences.</p>
+          </div>
+        </div>
+
+        <div class="admin-card">
+          <h3>📞 Contact Details</h3>
+          <div class="admin-row-2">
+            <div class="admin-field">
+              <label>Phone Number</label>
+              <input type="text" id="field-contact_phone" placeholder="+251 913 827 932" />
+            </div>
+            <div class="admin-field">
+              <label>Email Address</label>
+              <input type="email" id="field-contact_email" placeholder="seyoumshega@gmail.com" />
+            </div>
+          </div>
+          <div class="admin-field">
+            <label>Physical Address</label>
+            <input type="text" id="field-contact_address" placeholder="Haramaya University Campus, Haramaya, Oromia, Ethiopia" />
+          </div>
+        </div>
+
+        <button class="admin-btn admin-btn-gold" id="save-global-btn">💾 Save Global Settings</button>
+      </section>
+
+      <!-- ═══ TAB B: HOME PAGE ═══ -->
+      <section class="admin-panel" id="panel-home">
+        <div class="admin-panel-header">
+          <h2>Home Page Manager</h2>
+          <p>Control the hero banner, the Director's welcome message, and the campus-life gallery.</p>
+        </div>
+
+        <div class="admin-card">
+          <h3>🎯 Hero Banner</h3>
+          <div class="admin-field">
+            <label>Hero Headline</label>
+            <input type="text" id="field-hero_headline" placeholder="Excellence in Education" />
+          </div>
+          <div class="admin-field">
+            <label>Hero Background Image Filename</label>
+            <input type="text" id="field-hero_bg_image" placeholder="excellence.jpg" />
+          </div>
+        </div>
+
+        <div class="admin-card">
+          <h3>🎓 Director's Welcome</h3>
+          <div class="admin-row-2">
+            <div class="admin-field">
+              <label>Director Name</label>
+              <input type="text" id="field-director_name" placeholder="Mr. Seyoum Shega" />
+            </div>
+            <div class="admin-field">
+              <label>Director Title</label>
+              <input type="text" id="field-director_title" placeholder="School Director, HUMS" />
+            </div>
+          </div>
+          <div class="admin-field">
+            <label>Director Photo Filename</label>
+            <input type="text" id="field-director_photo" placeholder="Seyoum.jpg" />
+          </div>
+          <div class="admin-field">
+            <label>Welcome Message</label>
+            <textarea id="field-director_welcome_text" style="min-height:160px;" placeholder="It is with great pride that I welcome you..."></textarea>
+          </div>
+        </div>
+
+        <button class="admin-btn admin-btn-gold" id="save-home-btn">💾 Save Home Page Settings</button>
+
+        <hr class="admin-divider" />
+
+        <div class="admin-card">
+          <h3>🖼️ Wide Homepage Gallery</h3>
+          <p class="hint" style="margin-bottom:1rem;">These cards appear in the "Our School Community" section of the homepage.</p>
+          <div id="gallery-home-list"></div>
+          <button class="admin-btn admin-btn-ghost admin-btn-sm" id="add-gallery-home-btn" style="margin-top:.5rem;">+ Add Gallery Image</button>
+        </div>
+      </section>
+
+      <!-- ═══ TAB C: ABOUT FRAMEWORK ═══ -->
+      <section class="admin-panel" id="panel-about">
+        <div class="admin-panel-header">
+          <h2>About Page Framework Manager</h2>
+          <p>Edit the official Vision, Mission, Focus Areas, Goals, and Values text used on the About page.</p>
+        </div>
+
+        <div class="admin-card">
+          <h3>📜 History</h3>
+          <div class="admin-field">
+            <label>History Text (Section 1.1)</label>
+            <textarea id="field-history_text" style="min-height:140px;"></textarea>
+          </div>
+          <div class="admin-field">
+            <label>History Image Filename</label>
+            <input type="text" id="field-history_image" placeholder="MS.jpg" />
+          </div>
+        </div>
+
+        <div class="admin-card">
+          <h3>🌟 1.2.1 Vision</h3>
+          <div class="admin-field">
+            <textarea id="field-vision_text" style="min-height:90px;"></textarea>
+          </div>
+        </div>
+
+        <div class="admin-card">
+          <h3>🎯 1.2.2 Mission</h3>
+          <div class="admin-field">
+            <textarea id="field-mission_text" style="min-height:90px;"></textarea>
+          </div>
+        </div>
+
+        <div class="admin-card">
+          <h3>📘 1.2.3 Focus Areas &amp; Goals</h3>
+          <div class="admin-row-2">
+            <div class="admin-field">
+              <label>Focus Area 1</label>
+              <textarea id="field-focus_area_1" style="min-height:70px;"></textarea>
+            </div>
+            <div class="admin-field">
+              <label>Focus Area 2</label>
+              <textarea id="field-focus_area_2" style="min-height:70px;"></textarea>
+            </div>
+          </div>
+          <div class="admin-field">
+            <label>Goals Statement</label>
+            <textarea id="field-goals_text" style="min-height:90px;"></textarea>
+          </div>
+          <div class="admin-field">
+            <label>Focused Goal-1</label>
+            <textarea id="field-focused_goal_1" style="min-height:70px;"></textarea>
+          </div>
+          <div class="admin-field">
+            <label>Expected Outcome</label>
+            <textarea id="field-expected_outcome" style="min-height:70px;"></textarea>
+          </div>
+        </div>
+
+        <div class="admin-card">
+          <h3>💎 1.2.4 Values List</h3>
+          <div class="admin-field">
+            <label>Values (comma-separated)</label>
+            <input type="text" id="field-values_list" placeholder="Motivation & Initiative, Integrity, Creativity, Transparency, Adaptability" />
+            <p class="hint">Listed in the order entered. "Transparency" is automatically highlighted with special styling wherever it appears in this list.</p>
+          </div>
+        </div>
+
+        <button class="admin-btn admin-btn-gold" id="save-about-btn">💾 Save About Page Settings</button>
+
+        <hr class="admin-divider" />
+
+        <div class="admin-card">
+          <h3>🏫 List of Programs (1.3)</h3>
+          <p class="hint" style="margin-bottom:1rem;">These same 4 program records also populate the Academics page program overview.</p>
+          <div id="program-list"></div>
+        </div>
+      </section>
+
+      <!-- ═══ TAB D: ACADEMICS & METRICS ═══ -->
+      <section class="admin-panel" id="panel-academics">
+        <div class="admin-panel-header">
+          <h2>Academics &amp; Program Metrics</h2>
+          <p>Live enrolment counters and the four core program descriptions.</p>
+        </div>
+
+        <div class="admin-card">
+          <h3>🧑‍🎓 Student Enrolment</h3>
+          <div id="metrics-students-list"></div>
+        </div>
+
+        <div class="admin-card">
+          <h3>🧑‍🏫 Staff Counts</h3>
+          <div id="metrics-staff-list"></div>
+        </div>
+
+        <button class="admin-btn admin-btn-gold" id="save-metrics-btn">💾 Save All Metrics</button>
+
+        <hr class="admin-divider" />
+
+        <div class="admin-card">
+          <h3>📚 Core Programs</h3>
+          <div id="program-list-academics"></div>
+          <button class="admin-btn admin-btn-gold admin-btn-sm" id="save-programs-btn" style="margin-top:1rem;">💾 Save Program Details</button>
+        </div>
+
+        <hr class="admin-divider" />
+
+        <div class="admin-card">
+          <h3>🖼️ Galleries</h3>
+          <p class="hint" style="margin-bottom:1rem;">Manage the photo sets for the KG, Daycare, and Primary/Secondary sections of the Academics page.</p>
+          <div class="admin-row-3" style="margin-bottom:1rem;">
+            <button class="admin-btn admin-btn-ghost admin-btn-sm" data-gallery-tab="kg_gallery">KG Gallery</button>
+            <button class="admin-btn admin-btn-ghost admin-btn-sm" data-gallery-tab="daycare_gallery">Daycare Gallery</button>
+            <button class="admin-btn admin-btn-ghost admin-btn-sm" data-gallery-tab="primary_secondary_gallery">Primary/Secondary</button>
+          </div>
+          <div id="gallery-academics-list"></div>
+          <button class="admin-btn admin-btn-ghost admin-btn-sm" id="add-gallery-academics-btn" style="margin-top:.5rem;">+ Add Image to Selected Gallery</button>
+        </div>
+      </section>
+
+      <!-- ═══ TAB E1: NEWS DIRECTORY ═══ -->
+      <section class="admin-panel" id="panel-news">
+        <div class="admin-panel-header">
+          <h2>News Directory</h2>
+          <p>Create, edit, or remove news posts shown on the Home and News pages.</p>
+        </div>
+
+        <div class="admin-card">
+          <h3 id="news-form-title">➕ Add News Item</h3>
+          <input type="hidden" id="news-edit-id" />
+          <div class="admin-row-2">
+            <div class="admin-field">
+              <label>Date</label>
+              <input type="date" id="news-date" />
+            </div>
+            <div class="admin-field">
+              <label>Image Filename (optional)</label>
+              <input type="text" id="news-image" placeholder="farm.jpg" />
+            </div>
+          </div>
+          <div class="admin-field">
+            <label>Title</label>
+            <input type="text" id="news-title" placeholder="e.g. Grade 8 &amp; 6 Regional Examinations Completed" />
+          </div>
+          <div class="admin-field">
+            <label>Description</label>
+            <textarea id="news-description" placeholder="Write the full news description here..."></textarea>
+          </div>
+          <div style="display:flex; gap:.75rem;">
+            <button class="admin-btn admin-btn-gold" id="news-save-btn">Save News Item</button>
+            <button class="admin-btn admin-btn-ghost" id="news-cancel-btn" style="display:none;">Cancel Edit</button>
+          </div>
+        </div>
+
+        <div class="admin-card">
+          <h3>🗞️ All News Items</h3>
+          <div id="news-list"></div>
+        </div>
+      </section>
+
+      <!-- ═══ TAB E2: STAFF DIRECTORY ═══ -->
+      <section class="admin-panel" id="panel-staff">
+        <div class="admin-panel-header">
+          <h2>Staff Directory</h2>
+          <p>Create, edit, or remove staff profile cards shown on the Staffs page.</p>
+        </div>
+
+        <div class="admin-card">
+          <h3 id="staff-form-title">➕ Add Staff Member</h3>
+          <input type="hidden" id="staff-edit-id" />
+          <div class="admin-row-2">
+            <div class="admin-field">
+              <label>Full Name</label>
+              <input type="text" id="staff-name" placeholder="e.g. Sichale Idosa" />
+            </div>
+            <div class="admin-field">
+              <label>Role / Title</label>
+              <input type="text" id="staff-role" placeholder="e.g. Afan Oromo Dept. Head" />
+            </div>
+          </div>
+          <div class="admin-row-2">
+            <div class="admin-field">
+              <label>Category</label>
+              <select id="staff-category">
+                <option value="Directorates">Directorates</option>
+                <option value="School Management">School Management</option>
+              </select>
+            </div>
+            <div class="admin-field">
+              <label>Photo Filename</label>
+              <input type="text" id="staff-image" placeholder="e.g. sichale.jpg" />
+            </div>
+          </div>
+          <div style="display:flex; gap:.75rem;">
+            <button class="admin-btn admin-btn-gold" id="staff-save-btn">Save Staff Member</button>
+            <button class="admin-btn admin-btn-ghost" id="staff-cancel-btn" style="display:none;">Cancel Edit</button>
+          </div>
+        </div>
+
+        <div class="admin-card">
+          <h3>👔 Directorates</h3>
+          <div id="staff-list-directorates"></div>
+        </div>
+
+        <div class="admin-card">
+          <h3>🗂️ School Management</h3>
+          <div id="staff-list-management"></div>
+        </div>
+      </section>
+
+      <!-- ═══ HELP GUIDE ═══ -->
+      <section class="admin-panel" id="panel-help">
+        <div class="admin-panel-header">
+          <h2>On-Screen User Manual &amp; Help Guide</h2>
+          <p>A plain-language guide for directorate administrators — no technical knowledge required.</p>
+        </div>
+
+        <div class="admin-card">
+          <h3>✏️ Editing Text (like the Welcome Message or Mission Statement)</h3>
+          <div class="help-step">
+            <div class="help-step-num">1</div>
+            <div><strong>Find the right tab</strong><p>Use the sidebar on the left to open the section you want to change — for example, "Home Page" for the Director's message, or "About Framework" for the Mission and Vision text.</p></div>
+          </div>
+          <div class="help-step">
+            <div class="help-step-num">2</div>
+            <div><strong>Click into the box and type</strong><p>Click directly inside any text box or paragraph field and edit the words exactly as you would in a Word document or a text message.</p></div>
+          </div>
+          <div class="help-step">
+            <div class="help-step-num">3</div>
+            <div><strong>Press the gold "Save" button</strong><p>Nothing changes on the public website until you press the gold Save button for that section. Once you do, the change appears on the live site within a few seconds.</p></div>
+          </div>
+        </div>
+
+        <div class="admin-card">
+          <h3>🔢 Changing Enrollment Numbers</h3>
+          <div class="help-step">
+            <div class="help-step-num">1</div>
+            <div><strong>Open "Academics &amp; Metrics"</strong><p>You will see two lists of numbers: Student Enrolment and Staff Counts.</p></div>
+          </div>
+          <div class="help-step">
+            <div class="help-step-num">2</div>
+            <div><strong>Type the new number</strong><p>Click into the number box next to the category (for example, "Grades 9–12 Regular") and type the new total.</p></div>
+          </div>
+          <div class="help-step">
+            <div class="help-step-num">3</div>
+            <div><strong>Save All Metrics</strong><p>Press the gold "Save All Metrics" button once you are done updating all the numbers you need to change.</p></div>
+          </div>
+        </div>
+
+        <div class="admin-card">
+          <h3>🖼️ Updating a Staff Photo</h3>
+          <div class="help-step">
+            <div class="help-step-num">1</div>
+            <div><strong>Get the photo file ready</strong><p>Ask whoever manages the website files to add the new photo into the website folder, and ask them what the file is called (for example, "sichale.jpg").</p></div>
+          </div>
+          <div class="help-step">
+            <div class="help-step-num">2</div>
+            <div><strong>Open "Staff Directory" and find the person</strong><p>Scroll to find their card in either the Directorates or School Management list, and press "Edit".</p></div>
+          </div>
+          <div class="help-step">
+            <div class="help-step-num">3</div>
+            <div><strong>Type the new filename and Save</strong><p>Replace the text in the "Photo Filename" box with the new filename exactly as given to you, then press "Save Staff Member".</p></div>
+          </div>
+        </div>
+
+        <div class="admin-card">
+          <h3>🗞️ Posting a News Update</h3>
+          <div class="help-step">
+            <div class="help-step-num">1</div>
+            <div><strong>Open "News Directory"</strong><p>Fill in the date, a short title, and the full description in plain language — for example, announcing that Grade 8 and Grade 6 regional examinations are complete.</p></div>
+          </div>
+          <div class="help-step">
+            <div class="help-step-num">2</div>
+            <div><strong>Add a photo filename if you have one</strong><p>This is optional — news items can be text-only.</p></div>
+          </div>
+          <div class="help-step">
+            <div class="help-step-num">3</div>
+            <div><strong>Press "Save News Item"</strong><p>The new story appears immediately at the top of the News page and in the homepage news feed.</p></div>
+          </div>
+        </div>
+
+        <div class="admin-card">
+          <h3>❓ Good to Know</h3>
+          <div class="help-step">
+            <div class="help-step-num">i</div>
+            <div><strong>You will not break the website</strong><p>Every change can be edited again later, so feel free to make updates — there is no "undo" button, but you can always type the correct text back in.</p></div>
+          </div>
+          <div class="help-step">
+            <div class="help-step-num">i</div>
+            <div><strong>Five directors share this dashboard</strong><p>Mr. Seyoum Shega, Mrs. Bayush Getahun, Abdi Jemal, Abdurahman Hassen, and Feyera Tilahun each have their own private login. Anyone who saves a change will see it reflected for everyone immediately.</p></div>
+          </div>
+          <div class="help-step">
+            <div class="help-step-num">i</div>
+            <div><strong>Forgot your password?</strong><p>Contact whoever manages the Supabase project for this website — they can reset it for you from the Supabase dashboard.</p></div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script src="admin.js"></script>
+</body>
+</html>

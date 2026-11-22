@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>About — Haramaya University Model School</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <!-- NAVBAR -->
+  <nav class="navbar">
+    <div class="nav-inner">
+      <a href="index.html" class="nav-brand">
+        <div class="nav-logo-wrap">
+          <img src="haramayalogo.jpg" alt="HUMS Logo" />
+        </div>
+        <div class="nav-brand-text">
+          <strong>Haramaya University</strong>
+          <span>Model School</span>
+        </div>
+      </a>
+      <ul class="nav-links">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="about.html">About</a></li>
+        <li><a href="academics.html">Academics</a></li>
+        <li><a href="staffs.html">Staffs</a></li>
+        <li><a href="news.html">News</a></li>
+        <li><a href="contact.html">Contact</a></li>
+      </ul>
+      <button class="hamburger" aria-label="Toggle navigation">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </nav>
+  <!-- PAGE HERO -->
+  <div class="page-hero">
+    <h1>About HUMS</h1>
+    <p>Our history, mission, vision, and the values that guide us.</p>
+    <div class="breadcrumb">
+      <a href="index.html">Home</a>
+      <span>›</span>
+      <span>About</span>
+    </div>
+  </div>
+  <!-- SECTION 1.1 — OUR HISTORY  -->
+  <section class="section" id="history">
+    <div class="container">
+      <div class="about-history">
+        <div class="about-history-text fade-in">
+          <p style="font-family:'Poppins',sans-serif;font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--gold-dark);margin-bottom:.35rem;">1.1 &nbsp;Our Story</p>
+          <h2 class="section-title" style="text-align:left;">Our History</h2>
+          <div style="width:60px;height:4px;background:var(--gold);border-radius:2px;margin:.6rem 0 1.5rem;"></div>
+          <p data-field="history_text" style="white-space:pre-line;"></p>
+        </div>
+        <div class="about-history-img fade-in">
+          <img data-field="history_image" src="MS.jpg" alt="Haramaya University Model School campus" />
+        </div>
+      </div>
+    </div>
+  </section>
+  <!-- SECTION 1.2 — INSTITUTIONAL FRAMEWORK -->
+  <section class="section section-alt" id="mission">
+    <div class="container">
+      <div class="section-title-wrap fade-in">
+        <p style="font-family:'Poppins',sans-serif;font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--gold-dark);margin-bottom:.35rem;">1.2 &nbsp;Institutional Framework</p>
+        <h2 class="section-title">Vision &amp; Mission</h2>
+        <p class="section-subtitle">The principles that inspire every decision we make as an institution.</p>
+      </div>
+      <div class="mv-grid">
+        <div class="mv-card fade-in">
+          <img src="students.jpg" alt="Vision" class="mv-card-img" style="object-position: center center;" />
+          <div class="mv-card-body">
+            <h3>
+              <span class="icon">🌟</span>
+              1.2.1 &nbsp;Vision
+            </h3>
+            <p data-field="vision_text"></p>
+          </div>
+        </div>
+        <div class="mv-card fade-in">
+          <img src="top.jpg" alt="Mission" class="mv-card-img" style="object-position: center top;" />
+          <div class="mv-card-body">
+            <h3>
+              <span class="icon">🎯</span>
+              1.2.2 &nbsp;Mission
+            </h3>
+            <p data-field="mission_text"></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+  <!-- 1.2.3 FOCUS AREAS & GOALS  -->
+  <section class="section" id="goals">
+    <div class="container">
+      <div class="section-title-wrap fade-in">
+        <p style="font-family:'Poppins',sans-serif;font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--gold-dark);margin-bottom:.35rem;">1.2.3 &nbsp;Strategic Direction</p>
+        <h2 class="section-title">Focus Areas &amp; Goals</h2>
+        <p class="section-subtitle">The strategic priorities and outcomes guiding our institutional growth.</p>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:2.5rem;" class="fade-in">
+        <div class="program-card">
+          <h3>📘 Focus Area 1 — Teaching &amp; Learning</h3>
+          <p data-field="focus_area_1"></p>
+        </div>
+        <div class="program-card">
+          <h3>🏛️ Focus Area 2 — Governance &amp; Management</h3>
+          <p data-field="focus_area_2"></p>
+        </div>
+      </div>
+      <div class="fade-in" style="background:var(--off-white);border-radius:var(--radius);padding:2.25rem 2.5rem;margin-bottom:2rem;">
+        <h3 style="font-family:'Poppins',sans-serif;font-size:1.1rem;font-weight:700;color:var(--navy);margin-bottom:.75rem;">Our Goals</h3>
+        <p data-field="goals_text" style="color:var(--text-light);line-height:1.85;"></p>
+      </div>
+      <div class="fade-in" style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;">
+        <div class="program-card" style="border-left-color:var(--navy);">
+          <h3>🚩 Focused Goal 1</h3>
+          <p data-field="focused_goal_1"></p>
+        </div>
+        <div class="program-card" style="border-left-color:var(--navy);">
+          <h3>✅ Expected Outcome</h3>
+          <p data-field="expected_outcome"></p>
+        </div>
+      </div>
+    </div>
+  </section>
+  <!-- 1.2.4 VALUES  -->
+  <section class="section section-alt" id="values">
+    <div class="container">
+      <div class="section-title-wrap fade-in">
+        <p style="font-family:'Poppins',sans-serif;font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--gold-dark);margin-bottom:.35rem;">1.2.4 &nbsp;What We Stand For</p>
+        <h2 class="section-title">Our Values</h2>
+        <p class="section-subtitle">We embody a culture of motivation and initiative in everything we do.</p>
+      </div>
+      <div class="values-grid fade-in" data-field="values_list" style="max-width:780px;margin:0 auto;">
+      </div>
+    </div>
+  </section>
+  <!-- SECTION 1.3 — LIST OF PROGRAMS  -->
+  <section class="section" id="programs">
+    <div class="container">
+      <div class="section-title-wrap fade-in">
+        <p style="font-family:'Poppins',sans-serif;font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--gold-dark);margin-bottom:.35rem;">1.3 &nbsp;What We Offer</p>
+        <h2 class="section-title">List of Programs</h2>
+        <p class="section-subtitle">Currently the school is providing three to four programs.</p>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1.5rem;" class="fade-in" data-programs="about">
+      </div>
+    </div>
+  </section>
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div>
+          <div class="footer-brand">
+            <img src="haramayalogo.jpg" alt="HUMS Logo" class="footer-logo" />
+            <div class="footer-brand-text">
+              <strong>Haramaya University Model School</strong>
+            </div>
+          </div>
+          <p class="footer-about-text" data-field="footer_history"></p>
+        </div>
+        <div class="footer-col">
+          <h4>Quick Links</h4>
+          <ul class="footer-links">
+            <li><a href="index.html">Home</a></li>
+            <li><a href="about.html">About Us</a></li>
+            <li><a href="academics.html">Academics</a></li>
+            <li><a href="staffs.html">Our Staff</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Resources</h4>
+          <ul class="footer-links">
+            <li><a href="news.html">News &amp; Events</a></li>
+            <li><a href="contact.html">Contact Us</a></li>
+            <li><a href="about.html#mission">Mission &amp; Vision</a></li>
+            <li><a href="about.html#programs">Programs</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Contact</h4>
+          <div class="footer-contact-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            <span data-field="contact_address"></span>
+          </div>
+          <div class="footer-contact-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.18h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.85a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+            <span data-field="contact_phone"></span>
+          </div>
+          <div class="footer-contact-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            <span data-field="contact_email"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© <span id="copyright-year"></span> Haramaya University Model School. All rights reserved.</p>
+    </div>
+  </footer>
+  <script src="script.js"></script>
+</body>
+</html>
