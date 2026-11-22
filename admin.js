@@ -1,4 +1,4 @@
-const SUPABASE_URL = 'postgresql://postgres.kuauxjiblcvmkzmpwwam:PasswordCaleb75751201@aws-0-eu-central-1.pooler.supabase.com:5432/postgres';
+const SUPABASE_URL = 'https://kuauxjiblcvmkzmpwwam.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_-bQkDiut6eZ5BD4RI5Vrag_XCjaaCL-';
 const humsAdminClient = (typeof window !== 'undefined' && window.supabase && SUPABASE_URL !== 'postgresql://postgres.kuauxjiblcvmkzmpwwam:PasswordCaleb75751201@aws-0-eu-central-1.pooler.supabase.com:5432/postgres')
   ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
