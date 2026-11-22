@@ -1,6 +1,6 @@
-const SUPABASE_URL = 'https://aevxykavypcuympffdpz.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFldnh5a2F2eXBjdXltcGZmZHB6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMwODE1NDIsImV4cCI6MjA5ODY1NzU0Mn0.2YSO-FVnnPrqS3jqVn07GAi_gaYomn4TeU_nvQi5BBc';
-const humsAdminClient = (typeof window !== 'undefined' && window.supabase && SUPABASE_URL !== 'YOUR_SUPABASE_PROJECT_URL')
+const SUPABASE_URL = 'postgresql://postgres.kuauxjiblcvmkzmpwwam:PasswordCaleb75751201@aws-0-eu-central-1.pooler.supabase.com:5432/postgres';
+const SUPABASE_ANON_KEY = 'sb_publishable_-bQkDiut6eZ5BD4RI5Vrag_XCjaaCL-';
+const humsAdminClient = (typeof window !== 'undefined' && window.supabase && SUPABASE_URL !== 'postgresql://postgres.kuauxjiblcvmkzmpwwam:PasswordCaleb75751201@aws-0-eu-central-1.pooler.supabase.com:5432/postgres')
   ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
   : null;
 function esc(str) {
